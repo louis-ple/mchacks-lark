@@ -57,18 +57,27 @@ class ServerScreen extends StatefulWidget {
 
 class ServerScreenImpl extends State<ServerScreen> {
   TextEditingController _textFieldController = TextEditingController();
+  final List<String> entries = <String>['Annie', 'Alex', 'Carolyn'];
 
   _displayDialog(BuildContext context) async {
-    return showDialog(
+    await(showDialog(
         context: context,
         builder: (context) {
           return AlertDialog(
-            title: Text('TextField in Dialog'),
+            title: Text('Add Server'),
             content: TextField(
               controller: _textFieldController,
-              decoration: InputDecoration(hintText: "TextField in Dialog"),
+              decoration: InputDecoration(hintText: "Server Name"),
             ),
             actions: <Widget>[
+              new FlatButton(
+                child: new Text('ADD'),
+                onPressed: () {
+                  entries.add(_textFieldController.text);
+                  setState((){});
+                  Navigator.of(context).pop();
+                },
+              ),
               new FlatButton(
                 child: new Text('CANCEL'),
                 onPressed: () {
@@ -77,7 +86,10 @@ class ServerScreenImpl extends State<ServerScreen> {
               )
             ],
           );
-        });
+        })
+    ).then((value) {
+      _textFieldController.clear();
+    });
   }
 
   @override
@@ -86,12 +98,16 @@ class ServerScreenImpl extends State<ServerScreen> {
         appBar: new AppBar(
           title: new Text("Server List"),
         ),
-        body: Column(
-          children: <Widget>[
-            Text("Hello World"),
-            Text("Hello Flutter")
-          ]
-        ),
+        body: new ListView.builder(
+            padding: const EdgeInsets.all(8),
+            itemCount: entries.length,
+            itemBuilder: (BuildContext context, int index) {
+              return Container(
+                height: 50,
+                child: Center(child: Text(entries[index])),
+              );
+            }
+          ),
         floatingActionButton: FloatingActionButton(
           child: Icon(Icons.add),
           onPressed: () => _displayDialog(context),

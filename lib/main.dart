@@ -56,6 +56,30 @@ class ServerScreen extends StatefulWidget {
 }
 
 class ServerScreenImpl extends State<ServerScreen> {
+  TextEditingController _textFieldController = TextEditingController();
+
+  _displayDialog(BuildContext context) async {
+    return showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text('TextField in Dialog'),
+            content: TextField(
+              controller: _textFieldController,
+              decoration: InputDecoration(hintText: "TextField in Dialog"),
+            ),
+            actions: <Widget>[
+              new FlatButton(
+                child: new Text('CANCEL'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              )
+            ],
+          );
+        });
+  }
+
   @override
   Widget build (BuildContext ctxt) {
     return new Scaffold(
@@ -70,9 +94,7 @@ class ServerScreenImpl extends State<ServerScreen> {
         ),
         floatingActionButton: FloatingActionButton(
           child: Icon(Icons.add),
-          onPressed: () {
-            print("Floating Action Button Pressed");
-          }
+          onPressed: () => _displayDialog(context),
         ),
     );
   }

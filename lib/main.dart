@@ -48,19 +48,32 @@ class FirstScreen extends StatelessWidget {
   }
 }
 
-class ServerScreen extends StatelessWidget {
+class ServerScreen extends StatefulWidget {
+  @override
+  State<StatefulWidget> createState() {
+    return ServerScreenImpl();
+  }
+}
+
+class ServerScreenImpl extends State<ServerScreen> {
   @override
   Widget build (BuildContext ctxt) {
     return new Scaffold(
         appBar: new AppBar(
           title: new Text("Server List"),
         ),
-        body: new Checkbox(
-            value: false,
-            onChanged: (bool newValue) {
-              Navigator.pop(ctxt); // Pop from stack
-            }
-        )
+        body: Column(
+          children: <Widget>[
+            Text("Hello World"),
+            Text("Hello Flutter")
+          ]
+        ),
+        floatingActionButton: FloatingActionButton(
+          child: Icon(Icons.add),
+          onPressed: () {
+            print("Floating Action Button Pressed");
+          }
+        ),
     );
   }
 }

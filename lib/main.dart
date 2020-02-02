@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_app/authentication/authenticate.dart';
 import 'package:flutter_app/authentication/wrapper.dart';
 import 'package:flutter_app/log_ins/auth.dart';
+import 'package:flutter_app/log_ins/sign_in.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_app/models/user.dart';
 
@@ -74,8 +75,11 @@ class FirstScreen extends StatelessWidget {
             FlatButton.icon(
               icon: Icon(Icons.person),
               label: Text('logout'),
-              onPressed: () async {
-                await _auth.signOut();
+              onPressed: () async{
+                Navigator.push(
+                  ctxt,
+                    MaterialPageRoute(builder: (context) => SignIn())
+                );
               },
             )
           ],

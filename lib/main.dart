@@ -46,21 +46,21 @@ class _Server {
 }
 
 class _Table {
-  final _Server server;
   final int tableNumber;
+  final int numGuests;
   final DocumentReference reference;
 
   _Table.fromMap(Map<String, dynamic> map, {this.reference})
       : assert(map['tableNumber'] != null),
-        assert(map['server'] != null),
-        server = map['server'],
-        tableNumber = map['tableNumber'];
+        assert(map['numGuests'] != null),
+        tableNumber = map['tableNumber'],
+        numGuests = map['numGuests'];
 
   _Table.fromSnapshot(DocumentSnapshot snapshot)
       : this.fromMap(snapshot.data, reference: snapshot.reference);
 
   @override
-  String toString() => "Table<$server:$tableNumber>";
+  String toString() => "Table<$tableNumber:$numGuests guests>";
 }
 
 class FirstScreen extends StatelessWidget {
@@ -70,7 +70,7 @@ class FirstScreen extends StatelessWidget {
   Widget build (BuildContext ctxt) {
     return Scaffold(
         appBar: AppBar(
-          title: Text("Multi Page Application"),
+          title: Text("Robohost"),
           actions: <Widget>[
             FlatButton.icon(
               icon: Icon(Icons.person),
@@ -86,23 +86,33 @@ class FirstScreen extends StatelessWidget {
         ),
         body: Column(
           children: <Widget>[
-            new Checkbox(
-                value: false,
-                onChanged: (bool newValue) {
-                  Navigator.push(
-                    ctxt,
-                    new MaterialPageRoute(builder: (ctxt) => new ServerScreen()),
-                  );
-                }
+            new Row(
+              children: <Widget> [
+                new Checkbox(
+                    value: false,
+                    onChanged: (bool newValue) {
+                      Navigator.push(
+                        ctxt,
+                        new MaterialPageRoute(builder: (ctxt) => new ServerScreen()),
+                      );
+                    }
+                ),
+                new Text("Servers")
+              ]
             ),
-            new Checkbox(
-                value: false,
-                onChanged: (bool newValue) {
-                  Navigator.push(
-                    ctxt,
-                    new MaterialPageRoute(builder: (ctxt) => new TableScreen()),
-                  );
-                }
+            new Row(
+              children: <Widget> [
+                new Checkbox(
+                    value: false,
+                    onChanged: (bool newValue) {
+                      Navigator.push(
+                        ctxt,
+                        new MaterialPageRoute(builder: (ctxt) => new TableScreen()),
+                      );
+                    }
+                ),
+                new Text("Tables")
+              ]
             )
           ]
         ),
@@ -119,9 +129,9 @@ class ServerScreen extends StatefulWidget {
 
 class ServerScreenImpl extends State<ServerScreen> {
   TextEditingController _textFieldController = TextEditingController();
-  final List<String> entries = <String>['Annie', 'Alex', 'Carolyn'];
 
   _displayAddDialog(BuildContext context) async {
+    final db = Firestore.instance;
     await(showDialog(
         context: context,
         builder: (context) {
@@ -135,7 +145,8 @@ class ServerScreenImpl extends State<ServerScreen> {
               new FlatButton(
                 child: new Text('ADD'),
                 onPressed: () {
-                  entries.add(_textFieldController.text);
+                  Map<String, Object> data = {"name" : _textFieldController.text, "tables" : List.castFrom([0, 1, 2])};
+                  db.collection("servers").document(_textFieldController.text).setData(data);
                   setState((){});
                   Navigator.of(context).pop();
                 },
@@ -155,6 +166,7 @@ class ServerScreenImpl extends State<ServerScreen> {
   }
 
   _displayEditDialog(BuildContext context, _Server server) async {
+    final db = Firestore.instance;
     await(showDialog(
         context: context,
         builder: (context) {
@@ -165,18 +177,19 @@ class ServerScreenImpl extends State<ServerScreen> {
               decoration: InputDecoration(hintText: "Server Name"),
             ),
             actions: <Widget>[
-//              new FlatButton(
-//                child: new Text('DELETE'),
-//                onPressed: () {
-//                  entries.removeAt(index);
-//                  setState((){});
-//                  Navigator.of(context).pop();
-//                },
-//              ),
+              new FlatButton(
+                child: new Text('DELETE'),
+                onPressed: () {
+                  db.collection("servers").document(server.reference.documentID).delete();
+                  setState((){});
+                  Navigator.of(context).pop();
+                },
+              ),
               new FlatButton(
                 child: new Text('UPDATE'),
                 onPressed: () {
-                  server.name = _textFieldController.text;
+                  final Map<String, dynamic> data = {"name": _textFieldController.text};
+                  db.collection("servers").document(server.reference.documentID).updateData(data);
                   setState((){});
                   Navigator.of(context).pop();
                 },
@@ -200,7 +213,6 @@ class ServerScreenImpl extends State<ServerScreen> {
     return StreamBuilder<QuerySnapshot>(
       stream: db.collection('servers').snapshots(),
       builder: (context, snapshot) {
-        print("Snapshot: ${snapshot.toString()}");
         if (snapshot.hasData) return _buildList(context, snapshot.data.documents);
 
         return LinearProgressIndicator();
@@ -217,6 +229,7 @@ class ServerScreenImpl extends State<ServerScreen> {
 
   Widget _buildListItem(BuildContext context, DocumentSnapshot data) {
     final server = _Server.fromSnapshot(data);
+    final db = Firestore.instance;
 
     return Padding(
       key: ValueKey(server.name),
@@ -228,7 +241,7 @@ class ServerScreenImpl extends State<ServerScreen> {
         ),
         child: ListTile(
           title: Text(server.name),
-          trailing: Text(server.tables.toString()),
+          //trailing: Text(db.collection("servers").document(server.tables).toString()),
           onTap: () {
             _textFieldController.text = server.name;
             _displayEditDialog(context, server);
@@ -245,22 +258,6 @@ class ServerScreenImpl extends State<ServerScreen> {
           title: new Text("Server List"),
         ),
         body: _buildBody(context),
-//        body: new ListView.builder(
-//            padding: const EdgeInsets.all(8),
-//            itemCount: entries.length,
-//            itemBuilder: (BuildContext context, int index) {
-//              return FlatButton(
-//                child: Container(
-//                  height: 50,
-//                  child: Center(child: Text(entries[index])),
-//                ),
-//                onPressed: () {
-//                  _textFieldController.text = entries[index];
-//                  _displayEditDialog(context, index);
-//                },
-//              );
-//            }
-//          ),
         floatingActionButton: FloatingActionButton(
           child: Icon(Icons.add),
           onPressed: () => _displayAddDialog(context),
@@ -277,6 +274,7 @@ class TableScreen extends StatefulWidget {
 }
 
 class TableScreenImpl extends State<TableScreen> {
+  final db = Firestore.instance;
   TextEditingController _tFCNumGuests = new TextEditingController();
   TextEditingController _tFCTableNum = new TextEditingController();
   final List<int> tables = <int>[1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14];
@@ -311,7 +309,8 @@ class TableScreenImpl extends State<TableScreen> {
               new FlatButton(
                 child: new Text('ADD'),
                 onPressed: () {
-                  tables.add(int.parse(_tFCTableNum.text));
+                  Map<String, Object> data = {"tableNumber" : int.parse(_tFCTableNum.text), "numGuests" : int.parse(_tFCNumGuests.text)};
+                  db.collection("tables").document(_tFCTableNum.text).setData(data);
                   setState((){});
                   Navigator.of(context).pop();
                 },
@@ -331,7 +330,7 @@ class TableScreenImpl extends State<TableScreen> {
     });
   }
 
-  _displayEditDialog(BuildContext context, int index) async {
+  _displayEditDialog(BuildContext context, _Table table) async {
     await(showDialog(
         context: context,
         builder: (context) {
@@ -361,7 +360,7 @@ class TableScreenImpl extends State<TableScreen> {
               new FlatButton(
                 child: new Text('DELETE'),
                 onPressed: () {
-                  tables.removeAt(index);
+                  db.collection("tables").document(table.reference.documentID).delete();
                   setState((){});
                   Navigator.of(context).pop();
                 },
@@ -369,7 +368,8 @@ class TableScreenImpl extends State<TableScreen> {
               new FlatButton(
                 child: new Text('UPDATE'),
                 onPressed: () {
-                  tables[index] = int.parse(_tFCTableNum.text);
+                  final Map<String, dynamic> data = {"tableNumber": int.parse(_tFCTableNum.text), "numGuests" : int.parse(_tFCNumGuests.text)};
+                  db.collection("tables").document(table.reference.documentID).updateData(data);
                   setState((){});
                   Navigator.of(context).pop();
                 },
@@ -389,31 +389,59 @@ class TableScreenImpl extends State<TableScreen> {
     });
   }
 
+  Widget _buildBody(BuildContext context) {
+    Firestore db = Firestore.instance;
+    return StreamBuilder<QuerySnapshot>(
+      stream: db.collection('tables').snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) return _buildList(context, snapshot.data.documents);
+
+        return LinearProgressIndicator();
+      },
+    );
+  }
+
+  Widget _buildList(BuildContext context, List<DocumentSnapshot> snapshot) {
+    return GridView(
+        gridDelegate:
+          new SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3),
+      padding: const EdgeInsets.only(top: 20.0),
+      children: snapshot.map((data) => _buildListItem(context, data)).toList(),
+    );
+  }
+
+  Widget _buildListItem(BuildContext context, DocumentSnapshot data) {
+    final table = _Table.fromSnapshot(data);
+    final db = Firestore.instance;
+
+    return Padding(
+      key: ValueKey("Table ${table.tableNumber}"),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey),
+          borderRadius: BorderRadius.circular(5.0),
+        ),
+        child: ListTile(
+          title: Text("Table ${table.tableNumber}"),
+          //trailing: Text(db.collection("servers").document(server.tables).toString()),
+          onTap: () {
+            _tFCTableNum.text = "${table.tableNumber}";
+            _tFCNumGuests.text = "${table.numGuests}";
+            _displayEditDialog(context, table);
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build (BuildContext ctxt) {
     return new Scaffold(
       appBar: new AppBar(
         title: new Text("Tables"),
       ),
-      body: new GridView.builder(
-          itemCount: tables.length,
-          gridDelegate:
-          new SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 5),
-          itemBuilder: (BuildContext context, int index) {
-            return new GestureDetector(
-              child: new Card(
-                elevation: 5.0,
-                child: new Container(
-                  alignment: Alignment.center,
-                  child: new Text('Table ${tables[index]}'),
-                ),
-              ),
-              onTap: () {
-                _tFCTableNum.text = '${tables[index]}';
-                _displayEditDialog(context, index);
-              },
-            );
-          }),
+      body: _buildBody(context),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
         onPressed: () => _displayAddDialog(context),

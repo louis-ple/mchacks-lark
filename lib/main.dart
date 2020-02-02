@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 void main() => runApp(MyApp());
 
@@ -13,6 +15,42 @@ class MyApp extends StatelessWidget {
       home: new FirstScreen(),
     );
   }
+}
+
+class _Server {
+  String name;
+  final tables;
+  final DocumentReference reference;
+
+  _Server.fromMap(Map<String, dynamic> map, {this.reference})
+      : assert(map['name'] != null),
+        assert(map['tables'] != null),
+        name = map['name'],
+        tables = map['tables'];
+
+  _Server.fromSnapshot(DocumentSnapshot snapshot)
+      : this.fromMap(snapshot.data, reference: snapshot.reference);
+
+  @override
+  String toString() => "Server<$name:$tables>";
+}
+
+class _Table {
+  final _Server server;
+  final int tableNumber;
+  final DocumentReference reference;
+
+  _Table.fromMap(Map<String, dynamic> map, {this.reference})
+      : assert(map['tableNumber'] != null),
+        assert(map['server'] != null),
+        server = map['server'],
+        tableNumber = map['tableNumber'];
+
+  _Table.fromSnapshot(DocumentSnapshot snapshot)
+      : this.fromMap(snapshot.data, reference: snapshot.reference);
+
+  @override
+  String toString() => "Table<$server:$tableNumber>";
 }
 
 class FirstScreen extends StatelessWidget {
@@ -59,7 +97,7 @@ class ServerScreenImpl extends State<ServerScreen> {
   TextEditingController _textFieldController = TextEditingController();
   final List<String> entries = <String>['Annie', 'Alex', 'Carolyn'];
 
-  _displayDialog(BuildContext context) async {
+  _displayAddDialog(BuildContext context) async {
     await(showDialog(
         context: context,
         builder: (context) {
@@ -92,129 +130,273 @@ class ServerScreenImpl extends State<ServerScreen> {
     });
   }
 
+  _displayEditDialog(BuildContext context, _Server server) async {
+    await(showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text('Edit Server'),
+            content: TextField(
+              controller: _textFieldController,
+              decoration: InputDecoration(hintText: "Server Name"),
+            ),
+            actions: <Widget>[
+//              new FlatButton(
+//                child: new Text('DELETE'),
+//                onPressed: () {
+//                  entries.removeAt(index);
+//                  setState((){});
+//                  Navigator.of(context).pop();
+//                },
+//              ),
+              new FlatButton(
+                child: new Text('UPDATE'),
+                onPressed: () {
+                  server.name = _textFieldController.text;
+                  setState((){});
+                  Navigator.of(context).pop();
+                },
+              ),
+              new FlatButton(
+                child: new Text('CANCEL'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              )
+            ],
+          );
+        })
+    ).then((value) {
+      _textFieldController.clear();
+    });
+  }
+
+  Widget _buildBody(BuildContext context) {
+    Firestore db = Firestore.instance;
+    return StreamBuilder<QuerySnapshot>(
+      stream: db.collection('servers').snapshots(),
+      builder: (context, snapshot) {
+        print("Snapshot: ${snapshot.toString()}");
+        if (snapshot.hasData) return _buildList(context, snapshot.data.documents);
+
+        return LinearProgressIndicator();
+      },
+    );
+  }
+
+  Widget _buildList(BuildContext context, List<DocumentSnapshot> snapshot) {
+    return ListView(
+      padding: const EdgeInsets.only(top: 20.0),
+      children: snapshot.map((data) => _buildListItem(context, data)).toList(),
+    );
+  }
+
+  Widget _buildListItem(BuildContext context, DocumentSnapshot data) {
+    final server = _Server.fromSnapshot(data);
+
+    return Padding(
+      key: ValueKey(server.name),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey),
+          borderRadius: BorderRadius.circular(5.0),
+        ),
+        child: ListTile(
+          title: Text(server.name),
+          trailing: Text(server.tables.toString()),
+          onTap: () {
+            _textFieldController.text = server.name;
+            _displayEditDialog(context, server);
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build (BuildContext ctxt) {
     return new Scaffold(
         appBar: new AppBar(
           title: new Text("Server List"),
         ),
-        body: new ListView.builder(
-            padding: const EdgeInsets.all(8),
-            itemCount: entries.length,
-            itemBuilder: (BuildContext context, int index) {
-              return Container(
-                height: 50,
-                child: Center(child: Text(entries[index])),
-              );
-            }
-          ),
+        body: _buildBody(context),
+//        body: new ListView.builder(
+//            padding: const EdgeInsets.all(8),
+//            itemCount: entries.length,
+//            itemBuilder: (BuildContext context, int index) {
+//              return FlatButton(
+//                child: Container(
+//                  height: 50,
+//                  child: Center(child: Text(entries[index])),
+//                ),
+//                onPressed: () {
+//                  _textFieldController.text = entries[index];
+//                  _displayEditDialog(context, index);
+//                },
+//              );
+//            }
+//          ),
         floatingActionButton: FloatingActionButton(
           child: Icon(Icons.add),
-          onPressed: () => _displayDialog(context),
+          onPressed: () => _displayAddDialog(context),
         ),
     );
   }
 }
 
-class TableScreen extends StatefulWidget{
-  TableScreen({Key key, this.title}) : super(key: key);
-
-  final String title;
-
+class TableScreen extends StatefulWidget {
   @override
-  _Tables createState() => _Tables();
+  State<StatefulWidget> createState() {
+    return TableScreenImpl();
+  }
 }
 
-// The base class for the different types of items the list can contain.
-class Table {
-  int id;
-  Table(this.id);
-}
+class TableScreenImpl extends State<TableScreen> {
+  TextEditingController _tFCNumGuests = new TextEditingController();
+  TextEditingController _tFCTableNum = new TextEditingController();
+  final List<int> tables = <int>[1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14];
 
-class _Tables extends State<TableScreen> {
-
-  Table table1 = new Table(1);
-  Table table2 = new Table(2);
-  Table table3 = new Table(3);
-
-  int _nb_tables = 0;
-  final List<Table> tables = <Table>[];
-  final TextEditingController eCtrl = TextEditingController();
-
-  void _showDialog() {
-    // flutter defined function
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        // return object of type Dialog
-        return AlertDialog(
-          title: new Text("Enter table number:"),
-          content: TextField(
-            controller: eCtrl,
-          ),
-          actions: <Widget>[
-            // usually buttons at the bottom of the dialog
-            new MaterialButton(
-              child:  Text("Add"),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+  _displayAddDialog(BuildContext context) async {
+    await(showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text('Add Table'),
+            content: Column(
+              children: <Widget>[
+                TextField(
+                  controller: _tFCNumGuests,
+                  decoration: InputDecoration(hintText: "# of Guests", labelText: "Fits:"),
+                  inputFormatters: <TextInputFormatter>[
+                    WhitelistingTextInputFormatter.digitsOnly
+                  ],
+                  keyboardType: TextInputType.number,
+                ),
+                TextField(
+                  controller: _tFCTableNum,
+                  decoration: InputDecoration(hintText: "#", labelText: "Table Number"),
+                  inputFormatters: <TextInputFormatter>[
+                    WhitelistingTextInputFormatter.digitsOnly
+                  ],
+                  keyboardType: TextInputType.number,
+                )
+              ]
             ),
-          ],
-        );
-      },
-    );
+            actions: <Widget>[
+              new FlatButton(
+                child: new Text('ADD'),
+                onPressed: () {
+                  tables.add(int.parse(_tFCTableNum.text));
+                  setState((){});
+                  Navigator.of(context).pop();
+                },
+              ),
+              new FlatButton(
+                child: new Text('CANCEL'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              )
+            ],
+          );
+        })
+    ).then((value) {
+      _tFCNumGuests.clear();
+      _tFCTableNum.clear();
+    });
   }
 
-  void _addTable() {
-
-    _showDialog();
-
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _nb_tables++;
+  _displayEditDialog(BuildContext context, int index) async {
+    await(showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text('Edit Table'),
+            content: Column(
+                children: <Widget>[
+                  TextField(
+                    controller: _tFCNumGuests,
+                    decoration: InputDecoration(hintText: "# of Guests", labelText: "Fits:"),
+                    inputFormatters: <TextInputFormatter>[
+                      WhitelistingTextInputFormatter.digitsOnly
+                    ],
+                    keyboardType: TextInputType.number,
+                  ),
+                  TextField(
+                    controller: _tFCTableNum,
+                    decoration: InputDecoration(hintText: "#", labelText: "Table Number"),
+                    inputFormatters: <TextInputFormatter>[
+                      WhitelistingTextInputFormatter.digitsOnly
+                    ],
+                    keyboardType: TextInputType.number,
+                  )
+                ]
+            ),
+            actions: <Widget>[
+              new FlatButton(
+                child: new Text('DELETE'),
+                onPressed: () {
+                  tables.removeAt(index);
+                  setState((){});
+                  Navigator.of(context).pop();
+                },
+              ),
+              new FlatButton(
+                child: new Text('UPDATE'),
+                onPressed: () {
+                  tables[index] = int.parse(_tFCTableNum.text);
+                  setState((){});
+                  Navigator.of(context).pop();
+                },
+              ),
+              new FlatButton(
+                child: new Text('CANCEL'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              )
+            ],
+          );
+        })
+    ).then((value) {
+      _tFCNumGuests.clear();
+      _tFCTableNum.clear();
     });
   }
 
   @override
-  Widget build (BuildContext context) {
-
-    final title = 'Table list';
-
-    return MaterialApp(
-      title: title,
-      home: Scaffold(
-        appBar: AppBar(
-          title: Text(title),
-        ),
-        body: GridView.count(
-          // Create a grid with 2 columns. If you change the scrollDirection to
-          // horizontal, this produces 2 rows.
-          crossAxisCount: 2,
-          // Generate 100 widgets that display their index in the List.
-          children: List.generate(100, (index) {
-            return Center(
-              child: Text(
-                'Table $index',
-                style: Theme.of(context).textTheme.headline,
+  Widget build (BuildContext ctxt) {
+    return new Scaffold(
+      appBar: new AppBar(
+        title: new Text("Tables"),
+      ),
+      body: new GridView.builder(
+          itemCount: tables.length,
+          gridDelegate:
+          new SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 5),
+          itemBuilder: (BuildContext context, int index) {
+            return new GestureDetector(
+              child: new Card(
+                elevation: 5.0,
+                child: new Container(
+                  alignment: Alignment.center,
+                  child: new Text('Table ${tables[index]}'),
+                ),
               ),
+              onTap: () {
+                _tFCTableNum.text = '${tables[index]}';
+                _displayEditDialog(context, index);
+              },
             );
           }),
-        ),
-
-        floatingActionButton: FloatingActionButton(
-          onPressed: _addTable,
-          tooltip: 'Add a table',
-          child: Icon(Icons.add),
-        ),
+      floatingActionButton: FloatingActionButton(
+        child: Icon(Icons.add),
+        onPressed: () => _displayAddDialog(context),
       ),
     );
   }
+
 }
 
-//Firebase Authentication
-
+//

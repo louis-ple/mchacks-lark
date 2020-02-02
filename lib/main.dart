@@ -4,6 +4,12 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_app/authentication/authenticate.dart';
+import 'package:flutter_app/authentication/wrapper.dart';
+import 'package:flutter_app/log_ins/auth.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_app/models/user.dart';
+
 import 'package:flutter/services.dart';
 
 void main() => runApp(MyApp());
@@ -11,8 +17,11 @@ void main() => runApp(MyApp());
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext ctxt) {
-    return new MaterialApp(
-      home: new FirstScreen(),
+    return StreamProvider<User>.value(
+      value: AuthService().user,
+      child: MaterialApp(
+        home: Wrapper(),
+      ),
     );
   }
 }
@@ -54,11 +63,22 @@ class _Table {
 }
 
 class FirstScreen extends StatelessWidget {
+
+  final AuthService _auth = AuthService();
   @override
   Widget build (BuildContext ctxt) {
-    return new Scaffold(
-        appBar: new AppBar(
-          title: new Text("Multi Page Application"),
+    return Scaffold(
+        appBar: AppBar(
+          title: Text("Multi Page Application"),
+          actions: <Widget>[
+            FlatButton.icon(
+              icon: Icon(Icons.person),
+              label: Text('logout'),
+              onPressed: () async {
+                await _auth.signOut();
+              },
+            )
+          ],
         ),
         body: Column(
           children: <Widget>[

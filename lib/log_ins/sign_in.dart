@@ -133,10 +133,6 @@ class _SignInPageState extends State<SignInPage> {
                 onPressed: () async{
                   if(_formKey.currentState.validate()) {
                     dynamic result = await _auth.signInWithEmailAndPassword(email, password);
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => FirstScreen())
-                    );
                     if (result == null){
                       setState(() => error = 'Error, could not sign in');
                     }

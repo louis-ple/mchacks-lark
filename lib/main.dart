@@ -216,4 +216,5 @@ class _Tables extends State<TableScreen> {
   }
 }
 
-//
+//Firebase Authentication
+
